@@ -8,6 +8,9 @@ import vlc
 import threading
 import pafy
 
+# @Author (Motheen Baig)
+# GitHub (https://github.com/motheenb/VPlayer)
+
 
 class Listen(threading.Thread):  # runs single Thread to listen for voice input
     def __init__(self):
@@ -48,10 +51,6 @@ class Listen(threading.Thread):  # runs single Thread to listen for voice input
         return text
 
 
-def idle(context, media):  # handle actions while idle ?
-    print('IDLE')
-
-
 def volume_control(context, media):
     volume_settings = {  # customizable volume settings
         'low': 25,
@@ -70,6 +69,12 @@ def volume_control(context, media):
     else:
         volume = int(context)
         vlc.MediaPlayer.audio_set_volume(media, volume)  # set volume to int value
+
+
+# (context, media) leaves room to improve each function
+
+def idle(context, media):  # handle actions while idle ?
+    print('IDLE')
 
 
 def resume_song(context, media):
@@ -95,7 +100,7 @@ def play_song(context, media) -> vlc.MediaPlayer:  # returns instance of MediaPl
     vlc.MediaPlayer.release(media)
     media = vlc.MediaPlayer(best.url)
     vlc.MediaPlayer.audio_set_volume(media, 50)
-    media.play()
+    media.play()  # play YouTube audio
     return media
 
 
