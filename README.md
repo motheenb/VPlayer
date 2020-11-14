@@ -1,2 +1,2 @@
 # VPlayer
-Speech to text play YouTube audio (Python)
+Speech to text play & control YouTube audio! (Python)
