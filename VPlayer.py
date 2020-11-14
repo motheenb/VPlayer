@@ -11,9 +11,17 @@ import pafy
 class GrooV(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
+        self.functions = {
+            'play': self.play_song,
+            'stop': self.stop,
+            'pause': self.pause,
+            'resume': self.resume,
+            'volume': self.handle_volume
+        }
         self.listening = True
         self.r = sr.Recognizer()
         self.media = None
+        self.context = ''
         self.song_history = []
         self.song_queue = []
 
@@ -21,42 +29,6 @@ class GrooV(threading.Thread):
         while self.listening is True:
             command = self.speech_to_text()
             self.handle_commands(command)
-
-    def handle_commands(self, command):
-        operations = command.split(' ')
-        op = str(operations[0])
-        context = command.replace(op + ' ', '')
-        if op == 'queue':
-            self.song_queue.append(context)
-        elif op == 'play':
-            speak_text('Playing ' + context)
-            self.song_history.append(context)
-            self.play_song(context)
-        elif op == 'stop':
-            speak_text('Stopping Music!')
-            vlc.MediaPlayer.release(self.media)
-        elif op == 'back':
-            back = int(context)
-            speak_text('Playing ' + context)
-            self.back(back)
-        elif op == 'pause':
-            speak_text('Pausing Music!')
-            vlc.MediaPlayer.pause(self.media)
-        elif op == 'resume':
-            speak_text('Resuming Music!')
-            vlc.MediaPlayer.play(self.media)
-        elif op == 'volume':
-            if context == 'mute':
-                speak_text('Muting Music!')
-                vlc.MediaPlayer.audio_set_mute(self.media, True)
-            elif context == 'play':
-                speak_text('Resuming Music!')
-                vlc.MediaPlayer.audio_set_mute(self.media, False)
-            elif context == 'low' or context == 'medium' or context == 'high':
-                self.set_volume(self.volume_settings[context])
-            else:
-                volume = int(context)
-                self.set_volume(volume)
 
     volume_settings = {
         'low': 25,
@@ -84,19 +56,59 @@ class GrooV(threading.Thread):
             print('No Input Detected!')
         return text
 
+    def pause(self):
+        speak_text('Pausing Music!')
+        vlc.MediaPlayer.pause(self.media)
+
+    def stop(self):
+        speak_text('Stopping Music!')
+        if self.media is not None:
+            vlc.MediaPlayer.release(self.media)
+
     def back(self, num):
         size = len(self.song_history)
         if size > 0:
             self.play_song(self.song_history.__getitem__(size-num))
 
-    def play_song(self, song_name):
-        video = pafy.new(find_song_url(song_name))
+    def resume(self):
+        speak_text('Resuming Music!')
+        if self.media is not None:
+            vlc.MediaPlayer.play(self.media)
+
+    def handle_volume(self):
+        context = self.context
+        if context == 'mute':
+            speak_text('Muting Music!')
+            vlc.MediaPlayer.audio_set_mute(self.media, True)
+        elif context == 'play':
+            speak_text('Resuming Music!')
+            vlc.MediaPlayer.audio_set_mute(self.media, False)
+        elif context == 'low' or context == 'medium' or context == 'high':
+            self.set_volume(self.volume_settings[context])
+        else:
+            volume = int(context)
+            self.set_volume(volume)
+
+    def play_song(self):
+        speak_text('Playing ' + self.context)
+        video = pafy.new(find_song_url(self.context))
         best = video.getbestaudio()
         if self.media is not None:
             vlc.MediaPlayer.release(self.media)
         self.media = vlc.MediaPlayer(best.url)
         vlc.MediaPlayer.audio_set_volume(self.media, 50)
         self.media.play()
+
+    def do_function(self, op):
+        if not op:
+            self.functions[op]
+
+    def handle_commands(self, command):
+        operations = command.split(' ')
+        op = str(operations[0])
+        self.context = command.replace(op + ' ', '')
+        print(op + " = " + self.context)
+        # self.do_function(op)
 
 
 # scrape YouTube to find appropriate URL for requested song
