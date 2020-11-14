@@ -1,4 +1,3 @@
-import threading
 import urllib
 import requests
 import re
@@ -15,16 +14,16 @@ import pafy
 class Listen(threading.Thread):  # runs single Thread to listen for voice input
     def __init__(self):
         threading.Thread.__init__(self)
-        self.media = vlc.MediaPlayer()
+        self.player = AudioPlayer()
         self.r = sr.Recognizer()
         self.listening = True
         self.functions = {  # str(command) linked to its function
-            'play': play_song,
-            'pause': pause_song,
-            'stop': stop_song,
-            'resume': resume_song,
-            'volume': volume_control,
-            '': idle
+            'play': self.player.play_song,
+            'pause': self.player.pause_song,
+            'stop': self.player.stop_song,
+            'resume': self.player.resume_song,
+            'volume': self.player.volume_control,
+            '': self.player.idle
         }
 
     def run(self):
@@ -34,74 +33,81 @@ class Listen(threading.Thread):  # runs single Thread to listen for voice input
             context = speech_input.replace(operation + ' ', '')  # grab everything after the first word/operation
             for f in self.functions:
                 if operation == f:  # if valid function
-                    self.functions[operation](context, self.media)  # execute function with functions[function_name]
+                    self.functions[operation](context)  # execute function with functions[function_name]
 
     def speech_to_text(self) -> str:
         text = ''
         try:
             with sr.Microphone() as src:
-                audio = self.r.record(src, duration=5)  # record for duration of 5 sec.
+                self.r.adjust_for_ambient_noise(src, duration=0.7)
+                audio = self.r.record(src, duration=10)  # record for duration of 5 sec.
                 voice_to_text = self.r.recognize_google(audio)
                 text = voice_to_text.lower()
                 return text
         except sr.RequestError as e:
-            print("Could not request results; {0}".format(e))
+            pass
         except sr.UnknownValueError:
-            print('No Input Detected!')
+            # print('No Input Detected!')
+            pass
         return text
 
 
-def volume_control(context, media):
-    volume_settings = {  # customizable volume settings
-        'low': 25,
-        'medium': 55,
-        'high': 85
-    }
-    speak_text('Volume control!')
-    if context == 'mute':
-        speak_text('Muting Music!')
-        vlc.MediaPlayer.audio_set_mute(media, True)  # Mute
-    elif context == 'play':
+class AudioPlayer:
+    def __init__(self):
+        self.media = None
+        self.video = None
+        self.best = None
+        self.play_intro()
+
+    def play_song(self, context) -> vlc.MediaPlayer:  # returns instance of MediaPlayer
+        speak_text('Playing ' + context)
+        self.video = pafy.new(find_song_url(context))
+        self.best = self.video.getbestaudio()
+        if self.media is not None:
+            vlc.MediaPlayer.release(self.media)
+        self.media = vlc.MediaPlayer(self.best.url)
+        vlc.MediaPlayer.audio_set_volume(self.media, 50)
+        self.media.play()  # play YouTube audio
+        return self.media
+
+    def resume_song(self, context):
         speak_text('Resuming Music!')
-        vlc.MediaPlayer.audio_set_mute(media, False)  # UnMute
-    elif context == 'low' or context == 'medium' or context == 'high':
-        vlc.MediaPlayer.audio_set_volume(media, int(volume_settings[context]))  # set volume to preset value using key
-    else:
-        volume = int(context)
-        vlc.MediaPlayer.audio_set_volume(media, volume)  # set volume to int value
+        vlc.MediaPlayer.play(self.media)
 
+    def stop_song(self, context):
+        speak_text('Stopping Music!')
+        vlc.MediaPlayer.stop(self.media)
 
-# (context, media) leaves room to improve each function
+    def pause_song(self, context):
+        speak_text('Pausing Music!')
+        vlc.MediaPlayer.pause(self.media)
 
-def idle(context, media):  # handle actions while idle ?
-    print('IDLE')
+    def volume_control(self, context):
+        volume_settings = {  # customizable volume settings
+            'low': 25,
+            'medium': 55,
+            'high': 85
+        }
+        speak_text('Volume control!')
+        if context == 'mute':
+            speak_text('Muting Music!')
+            vlc.MediaPlayer.audio_set_mute(self.media, True)  # Mute
+        elif context == 'play':
+            speak_text('Resuming Music!')
+            vlc.MediaPlayer.audio_set_mute(self.media, False)  # UnMute
+        elif context == 'low' or context == 'medium' or context == 'high':
+            vlc.MediaPlayer.audio_set_volume(self.media, int(volume_settings[context]))  # set volume to preset value
+        else:
+            volume = int(context)
+            vlc.MediaPlayer.audio_set_volume(self.media, volume)  # set volume to int value
 
+    def play_intro(self):
+        self.media = vlc.MediaPlayer("welcome.mp3")
+        self.media.play()
 
-def resume_song(context, media):
-    speak_text('Resuming Music!')
-    vlc.MediaPlayer.play(media)
-
-
-def stop_song(context, media):
-    speak_text('Stopping Music!')
-    vlc.MediaPlayer.release(media)
-
-
-def pause_song(context, media):
-    speak_text('Pausing Music!')
-    vlc.MediaPlayer.pause(media)
-
-
-def play_song(context, media) -> vlc.MediaPlayer:  # returns instance of MediaPlayer
-    print(context)
-    speak_text('Playing ' + context)
-    video = pafy.new(find_song_url(context))
-    best = video.getbestaudio()
-    vlc.MediaPlayer.release(media)
-    media = vlc.MediaPlayer(best.url)
-    vlc.MediaPlayer.audio_set_volume(media, 50)
-    media.play()  # play YouTube audio
-    return media
+    def idle(self, context):  # handle actions while idle ?
+        # print('IDLE')
+        pass
 
 
 def find_song_url(song_name) -> str:
