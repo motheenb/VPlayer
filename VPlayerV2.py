@@ -14,6 +14,7 @@ import pafy
 class Listen(threading.Thread):  # runs single Thread to listen for voice input
     def __init__(self):
         threading.Thread.__init__(self)
+        self.listen_duration = 10
         self.player = AudioPlayer()
         self.r = sr.Recognizer()
         self.listening = True
@@ -40,7 +41,7 @@ class Listen(threading.Thread):  # runs single Thread to listen for voice input
         try:
             with sr.Microphone() as src:
                 self.r.adjust_for_ambient_noise(src, duration=0.7)
-                audio = self.r.record(src, duration=10)  # record for duration of 5 sec.
+                audio = self.r.record(src, duration=self.listen_duration)  # record for duration of 5 sec.
                 voice_to_text = self.r.recognize_google(audio)
                 text = voice_to_text.lower()
                 return text
@@ -102,7 +103,7 @@ class AudioPlayer:
             vlc.MediaPlayer.audio_set_volume(self.media, volume)  # set volume to int value
 
     def play_intro(self):
-        self.media = vlc.MediaPlayer("welcome.mp3")
+        self.media = vlc.MediaPlayer(r'C:\Users\mothe\PycharmProjects\VPlayer\sounds\welcome.mp3')
         self.media.play()
 
     def idle(self, context):  # handle actions while idle ?
