@@ -9,13 +9,13 @@ import threading
 import pafy
 
 
-class Listen(threading.Thread):
+class Listen(threading.Thread):  # runs single Thread to listen for voice input
     def __init__(self):
         threading.Thread.__init__(self)
+        self.media = vlc.MediaPlayer()
         self.r = sr.Recognizer()
         self.listening = True
-        self.media = None
-        self.functions = {
+        self.functions = {  # str(command) linked to its function
             'play': play_song,
             'pause': pause_song,
             'stop': stop_song,
@@ -28,18 +28,16 @@ class Listen(threading.Thread):
         while self.listening is True:
             speech_input = self.speech_to_text()
             operation = str(speech_input.split(' ')[0])
-            context = speech_input.replace(operation + ' ', '')
-            if self.media is None:
-                self.media = vlc.MediaPlayer()
-            for x in self.functions:
-                if operation == x:
-                    self.functions[operation](context, self.media)
+            context = speech_input.replace(operation + ' ', '')  # grab everything after the first word/operation
+            for f in self.functions:
+                if operation == f:  # if valid function
+                    self.functions[operation](context, self.media)  # execute function with functions[function_name]
 
     def speech_to_text(self) -> str:
         text = ''
         try:
             with sr.Microphone() as src:
-                audio = self.r.record(src, duration=5)
+                audio = self.r.record(src, duration=5)  # record for duration of 5 sec.
                 voice_to_text = self.r.recognize_google(audio)
                 text = voice_to_text.lower()
                 return text
@@ -50,12 +48,12 @@ class Listen(threading.Thread):
         return text
 
 
-def idle(context, media):
+def idle(context, media):  # handle actions while idle ?
     print('IDLE')
 
 
 def volume_control(context, media):
-    volume_settings = {
+    volume_settings = {  # customizable volume settings
         'low': 25,
         'medium': 55,
         'high': 85
@@ -63,15 +61,15 @@ def volume_control(context, media):
     speak_text('Volume control!')
     if context == 'mute':
         speak_text('Muting Music!')
-        vlc.MediaPlayer.audio_set_mute(media, True)
+        vlc.MediaPlayer.audio_set_mute(media, True)  # Mute
     elif context == 'play':
         speak_text('Resuming Music!')
-        vlc.MediaPlayer.audio_set_mute(media, False)
+        vlc.MediaPlayer.audio_set_mute(media, False)  # UnMute
     elif context == 'low' or context == 'medium' or context == 'high':
-        vlc.MediaPlayer.audio_set_volume(media, int(volume_settings[context]))
+        vlc.MediaPlayer.audio_set_volume(media, int(volume_settings[context]))  # set volume to preset value using key
     else:
         volume = int(context)
-        vlc.MediaPlayer.audio_set_volume(media, volume)
+        vlc.MediaPlayer.audio_set_volume(media, volume)  # set volume to int value
 
 
 def resume_song(context, media):
@@ -89,7 +87,7 @@ def pause_song(context, media):
     vlc.MediaPlayer.pause(media)
 
 
-def play_song(context, media) -> vlc.MediaPlayer:
+def play_song(context, media) -> vlc.MediaPlayer:  # returns instance of MediaPlayer
     print(context)
     speak_text('Playing ' + context)
     video = pafy.new(find_song_url(context))
@@ -106,17 +104,17 @@ def find_song_url(song_name) -> str:
     format_url = urllib.request.urlopen("https://www.youtube.com/results?" + query_string)
     search_results = re.findall(r"watch\?v=(\S{11})", format_url.read().decode())
     clip = requests.get("https://www.youtube.com/watch?v=" + "{}".format(search_results[0]))
-    format_clip = "https://www.youtube.com/watch?v=" + "{}".format(search_results[0])
+    format_clip = "https://www.youtube.com/watch?v=" + "{}".format(search_results[0])  # refined YouTube video URL
     return format_clip
 
 
-def speak_text(command):
+def speak_text(command):  # speak using the os voice
     engine = pyttsx3.init()
     engine.say(command)
     engine.runAndWait()
 
 
-def main():
+def main():  # create instance of Listen Thread and start()
     listen = Listen()
     listen.start()
 
