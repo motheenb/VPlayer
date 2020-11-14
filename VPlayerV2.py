@@ -103,7 +103,7 @@ class AudioPlayer:
             vlc.MediaPlayer.audio_set_volume(self.media, volume)  # set volume to int value
 
     def play_intro(self):
-        self.media = vlc.MediaPlayer(r'C:\Users\mothe\PycharmProjects\VPlayer\sounds\welcome.mp3')
+        self.media = vlc.MediaPlayer(r'\sounds\welcome.mp3')
         self.media.play()
 
     def idle(self, context):  # handle actions while idle ?
