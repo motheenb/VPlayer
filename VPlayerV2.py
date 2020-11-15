@@ -107,7 +107,7 @@ class AudioPlayer:
         self.media.play()
 
     def idle(self, context):  # handle actions while idle ?
-        # print('IDLE')
+        # does nothing yet
         pass
 
 
