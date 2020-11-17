@@ -14,7 +14,7 @@ import pafy
 class Listen(threading.Thread):  # runs single Thread to listen for voice input
     def __init__(self):
         threading.Thread.__init__(self)
-        self.listen_duration = 10
+        self.listen_duration = 5
         self.player = AudioPlayer()
         self.r = sr.Recognizer()
         self.listening = True
@@ -25,6 +25,8 @@ class Listen(threading.Thread):  # runs single Thread to listen for voice input
             'resume': self.player.resume_song,
             'volume': self.player.volume_control,
             'add': self.player.add_to_queue,
+            'next': self.player.next_in_queue,
+            'back': self.player.back_song,
             '': self.player.idle
         }
 
@@ -33,12 +35,11 @@ class Listen(threading.Thread):  # runs single Thread to listen for voice input
             speech_input = self.speech_to_text()
             operation = str(speech_input.split(' ')[0])
             context = speech_input.replace(operation + ' ', '')  # grab everything after the first word/operation
-            for f in self.functions:
-                if operation == f:  # if valid function
-                    self.functions[operation](context)  # execute function with functions[function_name]
-            if self.player.media is not None:
-                if not vlc.MediaPlayer.is_playing(self.player.media):
-                    self.player.next_in_queue()
+            if operation in self.functions:
+                self.functions[operation](context)  # execute function with functions[function_name]
+            if self.player.media is not None:  # if any media exists
+                if not vlc.MediaPlayer.is_playing(self.player.media):  # if media is no long playing and not paused
+                    self.player.next_in_queue('')
 
     def speech_to_text(self) -> str:
         try:
@@ -61,8 +62,10 @@ class AudioPlayer:
         self.media = None
         self.video = None
         self.best = None
+        self.stop = False
         self.volume = 30
         self.song_queue = []
+        self.song_history = []
         self.play_intro()
 
     def play_song(self, context) -> vlc.MediaPlayer:  # returns instance of MediaPlayer
@@ -72,24 +75,33 @@ class AudioPlayer:
         if self.media is not None:
             vlc.MediaPlayer.release(self.media)
         self.media = vlc.MediaPlayer(self.best.url)
-        vlc.MediaPlayer.audio_set_volume(self.media, 50)
+        vlc.MediaPlayer.audio_set_volume(self.media, self.volume)
         self.media.play()  # play YouTube audio
-        print(vlc.MediaPlayer.get_length(self.media))
+        self.add_to_history(context)
         return self.media
+
+    def back_song(self, context) -> bool:
+        if len(self.song_queue) > 0:
+            self.play_song(self.song_queue.pop())
+            return True
+        return False
+
+    def add_to_history(self, context):
+        self.song_history.append(context)
 
     def add_to_queue(self, context):
         speak_text('Adding ' + context + ' to queue!')
         self.song_queue.append(context)
 
-    def next_in_queue(self) -> bool:
+    def next_in_queue(self, context) -> bool:
         if len(self.song_queue) > 0:
             self.play_song(self.song_queue.pop(0))
             return True
-        else:
-            return False
+        return False
 
     def resume_song(self, context):
         speak_text('Resuming Music!')
+        self.stop = False
         vlc.MediaPlayer.play(self.media)
 
     def stop_song(self, context):
@@ -98,6 +110,7 @@ class AudioPlayer:
 
     def pause_song(self, context):
         speak_text('Pausing Music!')
+        self.stop = True
         vlc.MediaPlayer.pause(self.media)
 
     def volume_control(self, context):
