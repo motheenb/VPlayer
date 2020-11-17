@@ -24,6 +24,7 @@ class Listen(threading.Thread):  # runs single Thread to listen for voice input
             'stop': self.player.stop_song,
             'resume': self.player.resume_song,
             'volume': self.player.volume_control,
+            'add': self.player.add_to_queue,
             '': self.player.idle
         }
 
@@ -35,9 +36,11 @@ class Listen(threading.Thread):  # runs single Thread to listen for voice input
             for f in self.functions:
                 if operation == f:  # if valid function
                     self.functions[operation](context)  # execute function with functions[function_name]
+            if self.player.media is not None:
+                if not vlc.MediaPlayer.is_playing(self.player.media):
+                    self.player.next_in_queue()
 
     def speech_to_text(self) -> str:
-        text = ''
         try:
             with sr.Microphone() as src:
                 self.r.adjust_for_ambient_noise(src, duration=0.7)
@@ -50,7 +53,7 @@ class Listen(threading.Thread):  # runs single Thread to listen for voice input
         except sr.UnknownValueError:
             # print('No Input Detected!')
             pass
-        return text
+        return ''
 
 
 class AudioPlayer:
@@ -58,6 +61,8 @@ class AudioPlayer:
         self.media = None
         self.video = None
         self.best = None
+        self.volume = 30
+        self.song_queue = []
         self.play_intro()
 
     def play_song(self, context) -> vlc.MediaPlayer:  # returns instance of MediaPlayer
@@ -69,7 +74,19 @@ class AudioPlayer:
         self.media = vlc.MediaPlayer(self.best.url)
         vlc.MediaPlayer.audio_set_volume(self.media, 50)
         self.media.play()  # play YouTube audio
+        print(vlc.MediaPlayer.get_length(self.media))
         return self.media
+
+    def add_to_queue(self, context):
+        speak_text('Adding ' + context + ' to queue!')
+        self.song_queue.append(context)
+
+    def next_in_queue(self) -> bool:
+        if len(self.song_queue) > 0:
+            self.play_song(self.song_queue.pop(0))
+            return True
+        else:
+            return False
 
     def resume_song(self, context):
         speak_text('Resuming Music!')
@@ -99,8 +116,8 @@ class AudioPlayer:
         elif context == 'low' or context == 'medium' or context == 'high':
             vlc.MediaPlayer.audio_set_volume(self.media, int(volume_settings[context]))  # set volume to preset value
         else:
-            volume = int(context)
-            vlc.MediaPlayer.audio_set_volume(self.media, volume)  # set volume to int value
+            self.volume = int(context)
+            vlc.MediaPlayer.audio_set_volume(self.media, self.volume)  # set volume to int value
 
     def play_intro(self):
         self.media = vlc.MediaPlayer(r'\sounds\welcome.mp3')
