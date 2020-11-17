@@ -26,7 +26,6 @@ class Listen(threading.Thread):  # runs single Thread to listen for voice input
             'volume': self.player.volume_control,
             'add': self.player.add_to_queue,
             'next': self.player.next_in_queue,
-            'back': self.player.back_song,
             '': self.player.idle
         }
 
