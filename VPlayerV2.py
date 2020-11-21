@@ -119,13 +119,13 @@ class AudioPlayer:
             'high': 85
         }
         speak_text('Volume control!')
-        if context == 'mute':
+        if 'mute' in context:
             speak_text('Muting Music!')
             vlc.MediaPlayer.audio_set_mute(self.media, True)  # Mute
-        elif context == 'play':
+        elif 'play' in context:
             speak_text('Resuming Music!')
             vlc.MediaPlayer.audio_set_mute(self.media, False)  # UnMute
-        elif context == 'low' or context == 'medium' or context == 'high':
+        elif 'low' or 'medium' or 'high' in context:
             vlc.MediaPlayer.audio_set_volume(self.media, int(volume_settings[context]))  # set volume to preset value
         else:
             self.volume = int(context)
